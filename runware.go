@@ -7,14 +7,21 @@ import (
 	"net/http"
 )
 
+type TaskType string
+type OutputType string
+type OutputFormat string
+
 const (
-	Image    = "imageInference"
-	v1Domain = "https://api.runware.ai/v1"
+	ImageInference TaskType     = "imageInference"
+	Base64Data     OutputType   = "base64Data"
+	DataURI        OutputType   = "dataURI"
+	URL            OutputType   = "URL"
+	PNG            OutputFormat = "PNG"
+	JPG            OutputFormat = "JPG"
+	WEBP           OutputFormat = "WEBP"
 )
 
-type TaskType string
-
-type RunwareRequest struct {
+type RunwareOptions struct {
 	ApiKey          string
 	TaskType        TaskType
 	TaskUUID        string
@@ -23,54 +30,94 @@ type RunwareRequest struct {
 	Height          int8
 	Model           string
 	NumberOfResults int8
+	UploadEndpoint  string
+	CheckNSFW       bool
+	IncludeCost     bool
+	OutputType      OutputType
+	OutputFormat    OutputFormat
 }
 
 type RunwareResponseBody struct {
-	TaskType  string `json:"taskType"`
-	TaskUUID  string `json:"taskUUID"`
-	ImageUUID string `json:"imageUUID"`
-	ImageUrl  string `json:"imageUrl"`
+	TaskType        string  `json:"taskType,omitempty"`
+	TaskUUID        string  `json:"taskUUID,omitempty"`
+	ImageUUID       string  `json:"imageUUID,omitempty"`
+	ImageUrl        string  `json:"imageUrl,omitempty"`
+	ImageBase64Data string  `json:"imageBase64Data,omitempty"`
+	ImageDataURI    string  `json:"imageDataURI,omitempty"`
+	Seed            int8    `json:"seed,omitempty"`
+	NSFWContent     bool    `json:"NSFWContent,omitempty"`
+	Cost            float64 `json:"cost,omitempty"`
 }
 
 // Interface definition
 type GenerateImagesV1 interface {
-	Config(taskType string, taskUUID string, prompt string, width int8, height int8, model string, results int8) GenerateImagesV1
-	Generate() (*RunwareResponseBody, error)
+	Config(data map[string]any) GenerateImagesV1
+	GenerateV1() (*RunwareResponseBody, error)
 }
 
 // Struct implementing the interface
 type generateImagesV1Impl struct {
 	apiKey  string
-	request RunwareRequest
+	options RunwareOptions
 }
 
 func NewGenerateImagesV1(apiKey string) GenerateImagesV1 {
 	return &generateImagesV1Impl{
 		apiKey: apiKey,
-		request: RunwareRequest{
+		options: RunwareOptions{
 			ApiKey: apiKey,
 		},
 	}
 }
 
-func (g *generateImagesV1Impl) Config(taskType string, taskUUID string, prompt string, width int8, height int8, model string, results int8) GenerateImagesV1 {
-	g.request.TaskType = TaskType(taskType)
-	g.request.TaskUUID = taskUUID
-	g.request.Prompt = prompt
-	g.request.Width = width
-	g.request.Height = height
-	g.request.Model = model
-	g.request.NumberOfResults = results
+func (g *generateImagesV1Impl) Config(data map[string]any) GenerateImagesV1 {
+	if data["taskType"] != nil {
+		g.options.TaskType = data["taskType"].(TaskType)
+	}
+	if data["taskUUID"] != nil {
+		g.options.TaskUUID = data["taskUUID"].(string)
+	}
+	if data["prompt"] != nil {
+		g.options.Prompt = data["prompt"].(string)
+	}
+	if data["width"] != nil {
+		g.options.Width = data["width"].(int8)
+	}
+	if data["height"] != nil {
+		g.options.Height = data["height"].(int8)
+	}
+	if data["model"] != nil {
+		g.options.Model = data["model"].(string)
+	}
+	if data["results"] != nil {
+		g.options.NumberOfResults = data["results"].(int8)
+	}
+	if data["uploadEndpoint"] != nil {
+		g.options.UploadEndpoint = data["uploadEndpoint"].(string)
+	}
+	if data["checkNSFW"] != nil {
+		g.options.CheckNSFW = data["checkNSFW"].(bool)
+	}
+	if data["includeCost"] != nil {
+		g.options.IncludeCost = data["includeCost"].(bool)
+	}
+	if data["outputType"] != nil {
+		g.options.OutputType = data["outputType"].(OutputType)
+	}
+	if data["outputFormat"] != nil {
+		g.options.OutputFormat = data["outputFormat"].(OutputFormat)
+	}
 	return g
 }
 
-func (g *generateImagesV1Impl) Generate() (*RunwareResponseBody, error) {
-	return sendRequest(g.request, v1Domain)
+func (g *generateImagesV1Impl) GenerateV1() (*RunwareResponseBody, error) {
+	var v1Domain string = "https://api.runware.ai/v1"
+	return sendRequest(g.options, v1Domain)
 }
 
 // Helper functions
 
-func buildClient(request RunwareRequest, url string) (*http.Client, *http.Request, error) {
+func buildClient(request RunwareOptions, url string) (*http.Client, *http.Request, error) {
 	payload := map[string]any{
 		"taskType":        request.TaskType,
 		"taskUUID":        request.TaskUUID,
@@ -79,6 +126,11 @@ func buildClient(request RunwareRequest, url string) (*http.Client, *http.Reques
 		"height":          request.Height,
 		"model":           request.Model,
 		"numberOfResults": request.NumberOfResults,
+		"uploadEndpoint":  request.UploadEndpoint,
+		"checkNSFW":       request.CheckNSFW,
+		"includeCost":     request.IncludeCost,
+		"outputType":      request.OutputType,
+		"outputFormat":    request.OutputFormat,
 	}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
@@ -94,7 +146,7 @@ func buildClient(request RunwareRequest, url string) (*http.Client, *http.Reques
 	return client, req, nil
 }
 
-func sendRequest(request RunwareRequest, url string) (*RunwareResponseBody, error) {
+func sendRequest(request RunwareOptions, url string) (*RunwareResponseBody, error) {
 	client, req, err := buildClient(request, url)
 	if err != nil {
 		return nil, err
