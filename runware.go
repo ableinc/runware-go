@@ -10,6 +10,8 @@ import (
 type TaskType string
 type OutputType string
 type OutputFormat string
+type SD int16
+type HD int16
 
 const (
 	ImageInference TaskType     = "imageInference"
@@ -17,8 +19,30 @@ const (
 	DataURI        OutputType   = "dataURI"
 	URL            OutputType   = "URL"
 	PNG            OutputFormat = "PNG"
-	JPG            OutputFormat = "JPG"
+	JPG            OutputFormat = "JPEG"
 	WEBP           OutputFormat = "WEBP"
+	SD_Height      SD           = 512
+	SD_Width       SD           = 512
+
+	SD_Portrait3_4Height   SD = 1024
+	SD_Portrait3_4Width    SD = 768
+	SD_Portrait9_16Height  SD = 1152
+	SD_Portrait9_16Width   SD = 640
+	SD_Landscape4_3Height  SD = 768
+	SD_Landscape4_3Width   SD = 1024
+	SD_Landscape16_9Height SD = 640
+	SD_Landscape16_9Width  SD = 1152
+
+	HD_Height              HD = 1024
+	HD_Width               HD = 1024
+	HD_Portrait3_4Height   HD = 1536
+	HD_Portrait3_4Width    HD = 1152
+	HD_Portrait9_16Height  HD = 1728
+	HD_Portrait9_16Width   HD = 960
+	HD_Landscape4_3Height  HD = 1152
+	HD_Landscape4_3Width   HD = 1536
+	HD_Landscape16_9Height HD = 960
+	HD_Landscape16_9Width  HD = 1728
 )
 
 type RunwareOptions struct {
@@ -26,8 +50,8 @@ type RunwareOptions struct {
 	TaskType        TaskType
 	TaskUUID        string
 	Prompt          string
-	Width           int8
-	Height          int8
+	Width           any // can be SD or HD
+	Height          any // can be SD or HD
 	Model           string
 	NumberOfResults int8
 	UploadEndpoint  string
@@ -81,10 +105,10 @@ func (g *generateImagesV1Impl) Config(data map[string]any) GenerateImagesV1 {
 		g.options.Prompt = data["prompt"].(string)
 	}
 	if data["width"] != nil {
-		g.options.Width = data["width"].(int8)
+		g.options.Width = data["width"].(int16)
 	}
 	if data["height"] != nil {
-		g.options.Height = data["height"].(int8)
+		g.options.Height = data["height"].(int16)
 	}
 	if data["model"] != nil {
 		g.options.Model = data["model"].(string)
@@ -118,12 +142,20 @@ func (g *generateImagesV1Impl) GenerateV1() (*RunwareResponseBody, error) {
 // Helper functions
 
 func buildClient(request RunwareOptions, url string) (*http.Client, *http.Request, error) {
+	width, err := getDimensionValue(request.Width)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid width: %w", err)
+	}
+	height, err := getDimensionValue(request.Height)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid height: %w", err)
+	}
 	payload := map[string]any{
 		"taskType":        request.TaskType,
 		"taskUUID":        request.TaskUUID,
 		"positivePrompt":  request.Prompt,
-		"width":           request.Width,
-		"height":          request.Height,
+		"width":           width,
+		"height":          height,
 		"model":           request.Model,
 		"numberOfResults": request.NumberOfResults,
 		"uploadEndpoint":  request.UploadEndpoint,
@@ -164,4 +196,15 @@ func sendRequest(request RunwareOptions, url string) (*RunwareResponseBody, erro
 		return nil, err
 	}
 	return &response, nil
+}
+
+func getDimensionValue(dim any) (int16, error) {
+	switch v := dim.(type) {
+	case SD:
+		return int16(v), nil
+	case HD:
+		return int16(v), nil
+	default:
+		return 0, fmt.Errorf("invalid dimension type, must be SD or HD")
+	}
 }

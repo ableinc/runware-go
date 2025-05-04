@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/yourusername/runware"
+	"github.com/ableinc/runware-go"
 )
 
 func main() {
@@ -35,9 +35,9 @@ func main() {
 		"taskType":    runware.ImageInference,
 		"taskUUID":    "task-uuid-123",
 		"prompt":      "A dragon flying over mountains",
-		"width":       int8(512),
-		"height":      int8(512),
-		"model":       "dalle3",
+		"width":       runware.SD_Width,
+		"height":      runware.SD_Height,
+		"model":       "runware:100@1",
 		"results":     int8(1),
 		"checkNSFW":   true,
 		"includeCost": true,
