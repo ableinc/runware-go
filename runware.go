@@ -61,7 +61,7 @@ type RunwareOptions struct {
 	OutputFormat    OutputFormat
 }
 
-type RunwareResponseBody struct {
+type RunwareSuccessResponseBody struct {
 	TaskType        string  `json:"taskType,omitempty"`
 	TaskUUID        string  `json:"taskUUID,omitempty"`
 	ImageUUID       string  `json:"imageUUID,omitempty"`
@@ -73,10 +73,23 @@ type RunwareResponseBody struct {
 	Cost            float64 `json:"cost,omitempty"`
 }
 
+type RunwareErrorResponseBody struct {
+	Code      string `json:"code,omitempty"`
+	Message   string `json:"message,omitempty"`
+	Parameter string `json:"parameter,omitempty"`
+	Type      string `json:"type,omitempty"`
+	TaskType  string `json:"taskType,omitempty"`
+}
+
+type RunwareResponseBody struct {
+	Data   []RunwareSuccessResponseBody `json:"data,omitempty"`
+	Errors []RunwareErrorResponseBody   `json:"errors,omitempty"`
+}
+
 // Interface definition
 type GenerateImagesV1 interface {
 	Config(data map[string]any) GenerateImagesV1
-	GenerateV1() (*RunwareResponseBody, error)
+	GenerateV1() (*[]RunwareSuccessResponseBody, error)
 }
 
 // Struct implementing the interface
@@ -134,7 +147,7 @@ func (g *generateImagesV1Impl) Config(data map[string]any) GenerateImagesV1 {
 	return g
 }
 
-func (g *generateImagesV1Impl) GenerateV1() (*RunwareResponseBody, error) {
+func (g *generateImagesV1Impl) GenerateV1() (*[]RunwareSuccessResponseBody, error) {
 	var v1Domain string = "https://api.runware.ai/v1"
 	return sendRequest(g.options, v1Domain)
 }
@@ -178,7 +191,7 @@ func buildClient(request RunwareOptions, url string) (*http.Client, *http.Reques
 	return client, req, nil
 }
 
-func sendRequest(request RunwareOptions, url string) (*RunwareResponseBody, error) {
+func sendRequest(request RunwareOptions, url string) (*[]RunwareSuccessResponseBody, error) {
 	client, req, err := buildClient(request, url)
 	if err != nil {
 		return nil, err
@@ -195,7 +208,10 @@ func sendRequest(request RunwareOptions, url string) (*RunwareResponseBody, erro
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, err
 	}
-	return &response, nil
+	if len(response.Errors) > 0 {
+		return nil, fmt.Errorf("%s", response.Errors[0].Code)
+	}
+	return &response.Data, nil
 }
 
 func getDimensionValue(dim any) (int16, error) {
