@@ -1,0 +1,13 @@
+.env
+*.jpg
+*.jpeg
+*.png
+*.webp
+*linux*
+*apple*
+*silicon*
+*windows*
+*x86*
+*x64*
+*arm*
+*amd*

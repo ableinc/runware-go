@@ -1,6 +1,6 @@
 # runware-go
 
-```runware-go``` is a Go client library for interacting with the Runware API, providing easy access to image generation, inference tasks, and related features.
+```runware-go``` is a (unofficial) Go client library for interacting with the Runware API, providing easy access to image generation, inference tasks, and related features.
 
 This library abstracts away HTTP request handling and gives you a clean, configurable interface for generating images using the Runware platform.
 
@@ -102,16 +102,36 @@ client := runware.NewGenerateImagesV1("YOUR_API_KEY")
 
 ```go
 client := runware.NewGenerateImagesV1("YOUR_API_KEY").Config(map[string]any{
-	"prompt": "Sunset over ocean",
+	"taskType":     runware.ImageInference,
+	"taskUUID":     "065cb06a-41ef-4fb6-a6d6-63dc8b76f189", // if you do not provide a taskUUID and random UUID v4 will be generated automatically
+	"prompt":       "A dragon flying over mountains",
+	"width":        runware.SD_Landscape16_9Width,
+	"height":       runware.SD_Landscape16_9Height,
+	"model":        "runware:100@1",
+	"results":      int8(1),
+	"checkNSFW":    true,
+	"includeCost":  true,
+	"outputType":   runware.Base64Data,
+	"outputFormat": runware.PNG,
 })
 
 resp, err := client.GenerateV1()
+jsonResponse, err := json.MarshalIndent(resp, "", "  ")
 if err != nil {
-	log.Fatal(err)
+	log.Fatalf("Failed to marshal response: %v", err)
 }
-
-fmt.Println(resp.ImageUrl)
+fmt.Printf(string(jsonResponse))
 ```
+
+**Output**
+Note: This script was ran 3 times, these are the 3 images it produced on each run.
+
+![Dragon over mountain 1](https://able.sfo2.cdn.digitaloceanspaces.com/github/dragon_over_mountain_3.jpg "A dragon flying over mountains")
+
+![Dragon over mountain 2](https://able.sfo2.cdn.digitaloceanspaces.com/github/dragon_over_mountain_2.jpg "A dragon flying over mountains")
+
+![Dragon over mountain 3](https://able.sfo2.cdn.digitaloceanspaces.com/github/dragon_over_mountain_1.jpg "A dragon flying over mountains")
+
 
 ## Error Handling
 

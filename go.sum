@@ -1,0 +1,4 @@
+github.com/ableinc/go-env v0.1.4 h1:TkhiZ5o6B31+4rBkGZYNqjmMtNwlgw3ghbcUulO9ZPk=
+github.com/ableinc/go-env v0.1.4/go.mod h1:FhuWURfPotw8hb7Um+PQA4t1n3yycx/qJYuTdPiOg0c=
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
