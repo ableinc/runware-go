@@ -13,7 +13,7 @@ import (
 type TaskType string
 type OutputType string
 type OutputFormat string
-type Definition int16
+type Definition uint16
 
 const (
 	ImageInference TaskType     = "imageInference"
@@ -51,40 +51,40 @@ type RunwareOptions struct {
 	TaskType        TaskType
 	TaskUUID        string
 	Prompt          string
-	Width           any
-	Height          any
 	Model           string
-	NumberOfResults int8
 	UploadEndpoint  string
-	CheckNSFW       bool
-	IncludeCost     bool
 	OutputType      OutputType
 	OutputFormat    OutputFormat
+	Width           Definition
+	Height          Definition
+	NumberOfResults uint8
+	CheckNSFW       bool
+	IncludeCost     bool
 }
 
 type RunwareSuccessResponseBody struct {
-	TaskType        string  `json:"taskType,omitempty"`
-	TaskUUID        string  `json:"taskUUID,omitempty"`
-	ImageUUID       string  `json:"imageUUID,omitempty"`
-	ImageUrl        string  `json:"imageUrl,omitempty"`
-	ImageBase64Data string  `json:"imageBase64Data,omitempty"`
-	ImageDataURI    string  `json:"imageDataURI,omitempty"`
-	Seed            int     `json:"seed,omitempty"`
-	NSFWContent     bool    `json:"NSFWContent,omitempty"`
-	Cost            float64 `json:"cost,omitempty"`
+	TaskType        string
+	TaskUUID        string
+	ImageUUID       string
+	ImageUrl        string
+	ImageBase64Data string
+	ImageDataURI    string
+	Seed            int
+	Cost            float64
+	NSFWContent     bool
 }
 
 type RunwareErrorResponseBody struct {
-	Code      string `json:"code,omitempty"`
-	Message   string `json:"message,omitempty"`
-	Parameter string `json:"parameter,omitempty"`
-	Type      string `json:"type,omitempty"`
-	TaskType  string `json:"taskType,omitempty"`
+	Code      string
+	Message   string
+	Parameter string
+	Type      string
+	TaskType  string
 }
 
 type RunwareResponseBody struct {
-	Data   []RunwareSuccessResponseBody `json:"data,omitempty"`
-	Errors []RunwareErrorResponseBody   `json:"errors,omitempty"`
+	Data   []RunwareSuccessResponseBody
+	Errors []RunwareErrorResponseBody
 }
 
 // Interface definition
@@ -129,7 +129,7 @@ func (g *generateImagesV1Impl) Config(options []map[string]any) GenerateImagesV1
 			g.options[i].Model = data["model"].(string)
 		}
 		if data["results"] != nil {
-			g.options[i].NumberOfResults = data["results"].(int8)
+			g.options[i].NumberOfResults = data["results"].(uint8)
 		}
 		if data["uploadEndpoint"] != nil {
 			g.options[i].UploadEndpoint = data["uploadEndpoint"].(string)

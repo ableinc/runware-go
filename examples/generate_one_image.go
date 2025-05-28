@@ -25,7 +25,7 @@ func main() {
 			"width":        runware.SD_Landscape16_9Width,
 			"height":       runware.SD_Landscape16_9Height,
 			"model":        "runware:100@1",
-			"results":      int8(1),
+			"results":      uint8(1),
 			"checkNSFW":    true,
 			"includeCost":  true,
 			"outputType":   runware.Base64Data,
