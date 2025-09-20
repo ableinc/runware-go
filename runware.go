@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"slices"
 
 	"github.com/google/uuid"
 )
@@ -48,38 +49,38 @@ const (
 )
 
 type RunwareOptions struct {
-	TaskType        TaskType
-	TaskUUID        string
-	Prompt          string
-	Model           string
-	UploadEndpoint  string
-	OutputType      OutputType
-	OutputFormat    OutputFormat
-	Width           Definition
-	Height          Definition
-	NumberOfResults uint8
-	CheckNSFW       bool
-	IncludeCost     bool
+	TaskType        TaskType     `json:"taskType"`
+	TaskUUID        string       `json:"taskUUID"`
+	Prompt          string       `json:"prompt"`
+	Model           string       `json:"model"`
+	UploadEndpoint  string       `json:"uploadEndpoint"`
+	OutputType      OutputType   `json:"outputType"`
+	OutputFormat    OutputFormat `json:"outputFormat"`
+	Width           Definition   `json:"width"`
+	Height          Definition   `json:"height"`
+	NumberOfResults uint8        `json:"numberOfResults"`
+	CheckNSFW       bool         `json:"checkNSFW"`
+	IncludeCost     bool         `json:"includeCost"`
 }
 
 type RunwareSuccessResponseBody struct {
-	TaskType        string
-	TaskUUID        string
-	ImageUUID       string
-	ImageUrl        string
-	ImageBase64Data string
-	ImageDataURI    string
-	Seed            int
-	Cost            float64
-	NSFWContent     bool
+	TaskType        string  `json:"taskType"`
+	TaskUUID        string  `json:"taskUUID"`
+	ImageUUID       string  `json:"imageUUID"`
+	ImageUrl        string  `json:"imageUrl"`
+	ImageBase64Data string  `json:"imageBase64Data"`
+	ImageDataURI    string  `json:"imageDataURI"`
+	Seed            int     `json:"seed"`
+	Cost            float64 `json:"cost"`
+	NSFWContent     bool    `json:"nsfwContent"`
 }
 
 type RunwareErrorResponseBody struct {
-	Code      string
-	Message   string
-	Parameter string
-	Type      string
-	TaskType  string
+	Code      string `json:"code"`
+	Message   string `json:"message"`
+	Parameter string `json:"parameter"`
+	Type      string `json:"type"`
+	TaskType  string `json:"taskType"`
 }
 
 type RunwareResponseBody struct {
@@ -95,13 +96,15 @@ type GenerateImagesV1 interface {
 
 // Struct implementing the interface
 type generateImagesV1Impl struct {
-	apiKey  string
-	options []RunwareOptions
+	apiKey        string
+	options       []RunwareOptions
+	omittedFields []string
 }
 
 func NewGenerateImagesV1(apiKey string) GenerateImagesV1 {
 	return &generateImagesV1Impl{
-		apiKey: apiKey,
+		apiKey:        apiKey,
+		omittedFields: []string{},
 	}
 }
 
@@ -136,9 +139,13 @@ func (g *generateImagesV1Impl) Config(options []map[string]any) GenerateImagesV1
 		}
 		if data["checkNSFW"] != nil {
 			g.options[i].CheckNSFW = data["checkNSFW"].(bool)
+		} else {
+			g.omittedFields = append(g.omittedFields, "checkNSFW")
 		}
 		if data["includeCost"] != nil {
 			g.options[i].IncludeCost = data["includeCost"].(bool)
+		} else {
+			g.omittedFields = append(g.omittedFields, "includeCost")
 		}
 		if data["outputType"] != nil {
 			g.options[i].OutputType = data["outputType"].(OutputType)
@@ -152,26 +159,28 @@ func (g *generateImagesV1Impl) Config(options []map[string]any) GenerateImagesV1
 
 func (g *generateImagesV1Impl) GenerateV1() (*[]RunwareSuccessResponseBody, error) {
 	var v1Domain string = "https://api.runware.ai/v1"
-	return sendRequest(g.apiKey, g.options, v1Domain)
+	return sendRequest(g, v1Domain)
 }
 
-func buildClient(apiKey string, requests []RunwareOptions, url string) (*http.Client, *http.Request, error) {
+func buildClient(g *generateImagesV1Impl, url string) (*http.Client, *http.Request, error) {
 	var payload []map[string]any = make([]map[string]any, 0)
-	for _, request := range requests {
+	for _, request := range g.options {
 		width, err := getDimensionValue(request.Width)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid width: %w", err)
 		}
+		request.Width = Definition(width)
 		height, err := getDimensionValue(request.Height)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid height: %w", err)
 		}
+		request.Height = Definition(height)
 		payload = append(payload, skipEmptyOrNil(map[string]any{
 			"taskType":        request.TaskType,
 			"taskUUID":        request.TaskUUID,
 			"positivePrompt":  request.Prompt,
-			"width":           width,
-			"height":          height,
+			"width":           request.Width,
+			"height":          request.Height,
 			"model":           request.Model,
 			"numberOfResults": request.NumberOfResults,
 			"uploadEndpoint":  request.UploadEndpoint,
@@ -179,7 +188,7 @@ func buildClient(apiKey string, requests []RunwareOptions, url string) (*http.Cl
 			"includeCost":     request.IncludeCost,
 			"outputType":      request.OutputType,
 			"outputFormat":    request.OutputFormat,
-		}))
+		}, g.omittedFields))
 	}
 
 	jsonData, err := json.Marshal(payload)
@@ -192,12 +201,12 @@ func buildClient(apiKey string, requests []RunwareOptions, url string) (*http.Cl
 		return nil, nil, err
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", g.apiKey))
 	return client, req, nil
 }
 
-func sendRequest(apiKey string, requests []RunwareOptions, url string) (*[]RunwareSuccessResponseBody, error) {
-	client, req, err := buildClient(apiKey, requests, url)
+func sendRequest(g *generateImagesV1Impl, url string) (*[]RunwareSuccessResponseBody, error) {
+	client, req, err := buildClient(g, url)
 	if err != nil {
 		return nil, err
 	}
@@ -229,9 +238,9 @@ func getDimensionValue(dim any) (int16, error) {
 	}
 }
 
-func skipEmptyOrNil(option map[string]any) map[string]any {
+func skipEmptyOrNil(option map[string]any, omittedFields []string) map[string]any {
 	for key, value := range option {
-		if value == "" || value == nil {
+		if value == "" || value == nil || slices.Contains(omittedFields, key) {
 			delete(option, key)
 		}
 	}
